@@ -100,10 +100,10 @@ class MultiAuthenticator(Authenticator):
 
         return routes
 
-    # # No need to implement authenticate(), since we set authenticator in get_handlers()
-    # def authenticate(self, handler, data):
-    #     raise NotImplementedError()
-    #     # return super().authenticate(handler, data)
+    # No need to implement authenticate(), since we set authenticator in get_handlers()
+    async def authenticate(self, handler, data):
+        raise NotImplementedError()
+        # return super().authenticate(handler, data)
 
     def get_custom_html(self, base_url):
         html = [
