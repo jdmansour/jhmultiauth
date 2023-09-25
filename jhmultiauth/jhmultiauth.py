@@ -53,9 +53,6 @@ class MultiAuthenticator(Authenticator):
             def custom_login_url(
                 self, base_url, url_scope=url_scope, login_url=login_url
             ):
-                self.log.info(
-                    "custom_login_url: %r, %r, %r", base_url, url_scope, login_url
-                )
                 return url_path_join(base_url, url_scope, login_url)
 
             auth.login_url = MethodType(custom_login_url, auth)
