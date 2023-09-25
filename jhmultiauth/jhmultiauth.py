@@ -1,13 +1,18 @@
+import logging
 from types import MethodType
-from typing import List, NamedTuple, Tuple, Union, Type
+from typing import List, NamedTuple, Tuple, Type, Union
 
 import traitlets
 from jupyterhub.auth import Authenticator
 from jupyterhub.handlers import BaseHandler
+from jupyterhub.objects import Hub
 from jupyterhub.traitlets import EntryPointType
 from jupyterhub.utils import url_path_join
+from tornado.web import RequestHandler
 
 from .utils import resolve_authenticator
+
+log = logging.getLogger(__name__)
 
 KlassOrString = Union[str, Type[Authenticator]]
 
@@ -59,9 +64,10 @@ class MultiAuthenticator(Authenticator):
     def get_handlers(self, app):
         routes = []
         for auth, url_scope in self._authenticators:
+            self.log.info("Authenticator: %r, url_scope: %r", auth, url_scope)
             for path, HandlerKlass in auth.get_handlers(app):
                 self.log.info(
-                    "path: %r, HandlerKlass: %r, authenticator: %r",
+                    "  path: %r, HandlerKlass: %r, authenticator: %r",
                     path,
                     HandlerKlass,
                     HandlerKlass.authenticator,
@@ -79,13 +85,24 @@ class MultiAuthenticator(Authenticator):
                     #     self.log.info("SubHandler.__init__")
                     #     self.settings['login_url'] = self.authenticator.login_url(self.hub.base_url)
 
-                    # @BaseHandler.template_namespace.getter
-                    # def template_namespace(self):
-                    #     result = super().template_namespace
-                    #     # Attempt to fix sign-up link on the login page of NativeAuthenticator
-                    #     # However, this messes up e.g. the JupyteHub logo
-                    #     # result['base_url'] = url_path_join(self.hub.base_url, url_scope)
-                    #     return result
+                    @BaseHandler.template_namespace.getter
+                    def template_namespace(self):
+                        result = super().template_namespace
+                        # Attempt to fix sign-up link on the login page of NativeAuthenticator
+                        # However, this messes up e.g. the JupyteHub logo
+                        result["base_url"] = (
+                            url_path_join(self.hub.base_url, url_scope) + "/"
+                        )
+                        return result
+
+                    # Replace the base_url as seen by the authenticator:
+                    # This would fix /hub/native/authorize, but breaks login and
+                    # sends us in a login loop over /hub/api/oauth2/authorize...
+                    # @BaseHandler.hub.getter
+                    # def hub(self):
+                    #     # self.log.info("Accessing .hub property")
+                    #     # self.log.info("type of super().hub: %r", type(super().hub))
+                    #     return HubWrapper(super().hub, url_path_join(super().hub.base_url, with_trailing_slash(url_scope)))
 
                     @BaseHandler.settings.getter
                     def settings(self):
@@ -94,6 +111,15 @@ class MultiAuthenticator(Authenticator):
                         return result
 
                 routes.append((url_path_join(url_scope, path), SubHandler))
+
+            if url_scope != "":
+                # This fixes e.g. the logo on the login page of NativeAuthenticator
+                # We just redirect the wrong paths: /hub/native/logo -> /hub/logo
+                routes.append(
+                    (url_path_join(url_scope, r"(.+)$"), RedirectHandler)
+                )
+                # This fixes the path when you click on the logo: /hub/native/ -> /hub
+                routes.append((with_trailing_slash(url_scope), RedirectHandler))
 
         for route in routes:
             self.log.info("route %r", route)
@@ -127,3 +153,26 @@ class MultiAuthenticator(Authenticator):
             "</div>",
         ]
         return "\n".join(html + footer_html)
+
+
+def with_trailing_slash(path: str):
+    if not path.endswith("/"):
+        path += "/"
+    return path
+
+
+# class HubWrapper(object):
+#     """ Wraps a jupyterhub.objects.Hub instance, and overrides the base_url. """
+#     def __init__(self, wrappee: Hub, base_url):
+#         self.wrappee = wrappee
+#         self.base_url = base_url
+
+#     def __getattr__(self, attr):
+#         return getattr(self.wrappee, attr)
+
+
+class RedirectHandler(RequestHandler):
+    def get(self, path="", *args):
+        """ Redirects to /hub/<path>. """
+        new_url = f"/hub/{path}"
+        self.redirect(new_url)
