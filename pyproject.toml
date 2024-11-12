@@ -14,3 +14,9 @@ dependencies = [
 
 [project.entry-points."jupyterhub.authenticators"]
 multiauthenticator = "jhmultiauth:MultiAuthenticator"
+
+[tool.setuptools.package-data]
+"*" = ["py.typed", "*.pyi"]
+
+[tool.setuptools.packages.find]
+where = ["jhmultiauth"]
