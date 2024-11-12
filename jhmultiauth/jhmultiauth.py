@@ -41,7 +41,16 @@ class MultiAuthenticator(Authenticator):
         for klass_desc, url_scope in self.authenticators:
             # klass_desc can be a string or a class, ensure we have a class:
             AuthenticatorKlass = resolve_authenticator(klass_desc)
-            auth = AuthenticatorKlass(
+
+            class WrappedAuthenticator(AuthenticatorKlass):
+                async def authenticate(self, handler, data):
+                    self.log.info("WrappedAuthenticator.authenticate")
+                    result = await super().authenticate(handler, data)
+                    self.log.info("result: %r", result)
+                    return result
+
+            # auth = AuthenticatorKlass(
+            auth = WrappedAuthenticator(
                 parent=self, _deprecated_db_session=self._deprecated_db_session
             )
 
