@@ -44,9 +44,9 @@ class MultiAuthenticator(Authenticator):
 
             class WrappedAuthenticator(AuthenticatorKlass):
                 async def authenticate(self, handler, data):
-                    self.log.info("WrappedAuthenticator.authenticate")
+                    self.log.debug("WrappedAuthenticator.authenticate")
                     result = await super().authenticate(handler, data)
-                    self.log.info("result: %r", result)
+                    self.log.debug("result: %r", result)
                     return result
 
             # auth = AuthenticatorKlass(
@@ -70,9 +70,9 @@ class MultiAuthenticator(Authenticator):
     def get_handlers(self, app):
         routes = []
         for auth, url_scope in self._authenticators:
-            self.log.info("Authenticator: %r, url_scope: %r", auth, url_scope)
+            self.log.debug("Authenticator: %r, url_scope: %r", auth, url_scope)
             for path, HandlerKlass in auth.get_handlers(app):
-                self.log.info(
+                self.log.debug(
                     "  path: %r, HandlerKlass: %r, authenticator: %r",
                     path,
                     HandlerKlass,
@@ -87,8 +87,8 @@ class MultiAuthenticator(Authenticator):
 
                     # def __init__(self, *args, **kwargs):
                     #     super().__init__(*args, **kwargs)
-                    #     self.log.info("type of settings: %r", type(self.settings))
-                    #     self.log.info("SubHandler.__init__")
+                    #     self.log.debug("type of settings: %r", type(self.settings))
+                    #     self.log.debug("SubHandler.__init__")
                     #     self.settings['login_url'] = self.authenticator.login_url(self.hub.base_url)
 
                     @BaseHandler.template_namespace.getter
@@ -106,8 +106,8 @@ class MultiAuthenticator(Authenticator):
                     # sends us in a login loop over /hub/api/oauth2/authorize...
                     # @BaseHandler.hub.getter
                     # def hub(self):
-                    #     # self.log.info("Accessing .hub property")
-                    #     # self.log.info("type of super().hub: %r", type(super().hub))
+                    #     # self.log.debug("Accessing .hub property")
+                    #     # self.log.debug("type of super().hub: %r", type(super().hub))
                     #     return HubWrapper(super().hub, url_path_join(super().hub.base_url, with_trailing_slash(url_scope)))
 
                     @BaseHandler.settings.getter
@@ -128,7 +128,7 @@ class MultiAuthenticator(Authenticator):
                 routes.append((with_trailing_slash(url_scope), RedirectHandler))
 
         for route in routes:
-            self.log.info("route %r", route)
+            self.log.debug("route %r", route)
 
         return routes
 
